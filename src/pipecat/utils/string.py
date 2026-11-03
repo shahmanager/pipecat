@@ -19,7 +19,16 @@ from dataclasses import dataclass
 from functools import cache
 
 # The native extension does not publish Python type stubs.
-from sentencex import segment  # pyright: ignore[reportAttributeAccessIssue]
+try:
+    from sentencex import segment  # pyright: ignore[reportAttributeAccessIssue]
+except Exception:  # pragma: no cover
+    import re
+    _fallback_pattern = re.compile(r"[^.!?]+[.!?]*\s*")
+    def segment(_: str, text: str):
+        """Very naive sentence splitter used when `sentencex` is unavailable.
+        Returns a list of spans (strings) similar to `sentencex.segment`.
+        """
+        return _fallback_pattern.findall(text)
 
 _QUOTED_WORD_END = re.compile(r"(?<!\w)([\"'“‘«‹„‟「『]+)[\w.]+\.$")
 

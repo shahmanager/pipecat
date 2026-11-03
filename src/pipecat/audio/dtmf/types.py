@@ -11,7 +11,14 @@ key on the telephone keypad, facilitating the handling of input in
 telecommunication applications.
 """
 
-from enum import StrEnum
+try:
+    from enum import StrEnum  # Python >=3.11
+except ImportError:
+    # Fallback for Python <3.11: create a StrEnum compatible base
+    from enum import Enum
+    class StrEnum(str, Enum):
+        """Minimal StrEnum substitute for older Python versions."""
+        pass
 
 
 class KeypadEntry(StrEnum):

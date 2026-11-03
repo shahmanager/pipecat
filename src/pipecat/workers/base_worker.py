@@ -16,7 +16,15 @@ import dataclasses
 import time
 import uuid
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING
+
+# Provide ``Self`` typing alias for Python < 3.11 if missing.
+try:
+    from typing import Self  # type: ignore
+except ImportError:
+    import typing
+    Self = typing.TypeVar('Self')
+
 
 from loguru import logger
 
