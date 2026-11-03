@@ -323,31 +323,44 @@ class TwilioFrameSerializer(FrameSerializer):
             logger.warning(f"Failed to parse JSON message: {data}")
             return None
 
-        if message.get("event") == "media":
-            payload_base64 = message.get("media", {}).get("payload")
-            if not payload_base64:
+        # Defensive deserialize implementation
+        if not isinstance(message, dict):
+            logger.warning("Deserialize received non‑dict JSON object; ignoring.")
+            return None
+        event = message.get("event")
+        if event == "media":
+            media_obj = message.get("media")
+            if not isinstance(media_obj, dict):
+                logger.warning("Media field is not a dict; ignoring.")
                 return None
-            payload = base64.b64decode(payload_base64)
-
+            payload_base64 = media_obj.get("payload")
+            if not isinstance(payload_base64, str):
+                logger.warning("Payload missing or not a string; ignoring.")
+                return None
+            try:
+                payload = base64.b64decode(payload_base64)
+            except Exception as e:
+                logger.warning(f"Failed to base64‑decode payload: {e}")
+                return None
             # Input: Convert Twilio's 8kHz μ-law to PCM at pipeline input rate
             deserialized_data = await ulaw_to_pcm(
                 payload, self._twilio_sample_rate, self._sample_rate, self._input_resampler
             )
-            if deserialized_data is None or len(deserialized_data) == 0:
-                # Ignoring in case we don't have audio
+            if not deserialized_data:
                 return None
-
-            audio_frame = InputAudioRawFrame(
+            return InputAudioRawFrame(
                 audio=deserialized_data, num_channels=1, sample_rate=self._sample_rate
             )
-            return audio_frame
-        elif message.get("event") == "dtmf":
-            digit = message.get("dtmf", {}).get("digit")
 
+        elif message.get("event") == "dtmf":
+            dtmf_obj = message.get("dtmf")
+            if not isinstance(dtmf_obj, dict):
+                logger.warning("DTMF field is not a dict; ignoring.")
+                return None
+            digit = dtmf_obj.get("digit")
             try:
                 return InputDTMFFrame(KeypadEntry(digit))
-            except ValueError:
-                # Handle case where string doesn't match any enum value
+            except Exception:
                 return None
         else:
             return None
